@@ -28,6 +28,10 @@ if size(Saturation,1) == 1
     Saturation = Saturation';
 end
 
+if (Saturation(1)) > 10
+    error('Z-spectrum have to be 0-1, can not be percentage')
+end
+
 
 [Offset,Saturation] = Extract_Zspectrum(Offset,Saturation,FitParam.WholeRange);
 [Offset_background,Saturation_background] = CutOff_Zspectrum(Offset,Saturation,FitParam.PeakRange);
@@ -37,23 +41,24 @@ end
 %-----------------------------------------------%
 FitResult.xindex = linspace(min(Offset),max(Offset),100);
 %-------------background fitting --------------%
-x0_background = [0.5, 0, 0, 0];
-lb=[-inf, -inf, -inf,-inf];
-ub=[+inf, +inf, +inf,+inf];
+x0_background = [0.1, 1, 0.5, -190];
+lb=[0, 0, 0,-1000];
+ub=[100, 100, 1000,0];
 options=optimset('MaxFunEvals',1e6,'TolFun',1e-6,'TolX',1e-6, 'Display',  'off' );
 [FitResult.Coefficents,resnorm]=lsqcurvefit(@CruveFunction_background,x0_background,Offset_background,Saturation_background,lb,ub,options,FitParam);
 FitResult.Background = CruveFunction_background(FitResult.Coefficents,FitResult.xindex,FitParam);
+FitResult.BackgroundCoefficents = FitResult.Coefficents; % backup backgroud coefficents
 %-------------CEST peak fitting --------------%
 lb(1) = 1e-4;
-ub(1) = 1;
-lb(2) = 0.1;
+ub(1) = 100;
+lb(2) = 0.3;
 ub(2) = 5;
 lb(3) = min(FitParam.PeakRange);
 ub(3) = max(FitParam.PeakRange);
 
 lb(4:7)=FitResult.Coefficents - 0*abs(FitResult.Coefficents*0.02); % fix the background parameters
 ub(4:7)=FitResult.Coefficents + 0*abs(FitResult.Coefficents*0.02);
-x0 = [0.5, 0, 0, 0,0,0,0];
+x0 = [0.5, 0.1, 0, 0,0,0,0];
 
 [FitResult.Coefficents,resnorm]=lsqcurvefit(@CurveFunction,x0,Offset,Saturation,lb,ub,options,FitParam);
 FitResult.Curve = CurveFunction(FitResult.Coefficents,FitResult.xindex,FitParam);
@@ -69,7 +74,8 @@ FitResult.FitPeakOffset = FitResult.Coefficents(3);
 [temp,index1] = min(abs(FitResult.xindex - FitResult.FitPeakOffset));
 FitResult.DeltaZpeak = FitResult.Background(index1) - FitResult.Curve(index1);
 
-FitResult.MT = FitResult.Coefficents(4);
+% FitResult.MT = CruveFunction_background(FitResult.BackgroundCoefficents,FitResult.Coefficents(3),FitParam);
+FitResult.MT = CruveFunction_background(FitResult.BackgroundCoefficents,sort([FitParam.PeakOffset,FitParam.WholeRange]),FitParam);
 FitResult.Rsquare = goodnessOfFit(CurveFunction(FitResult.Coefficents,Offset,FitParam),Saturation,'NMSE');
 
 if FitParam.ifshowimage == 1
@@ -99,6 +105,9 @@ if FitParam.ifshowimage == 1
 
     xlswrite(xlsname,{'Coefficents'},1,'F1');
     xlswrite(xlsname,FitResult.Coefficents',1,'F2');
+    
+    xlswrite(xlsname,{'Zbackground'},1,'G1');
+    xlswrite(xlsname,FitResult.MT',1,'G2');
 
 end
 end
