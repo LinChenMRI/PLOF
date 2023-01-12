@@ -19,6 +19,5 @@ This toolbox contains demo for the following papers:
 
 Welcome your comments and suggestions.
 
-For more information, please visit: https://linchenmri.com
 
 November 05, 2019
